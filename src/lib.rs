@@ -17,6 +17,12 @@ pub enum Error {
     Unknown(c_int),
 }
 
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "Lame Error: {:?}", &self) // FIXME
+    }
+}
+
 impl From<c_int> for Error {
     fn from(errcode: c_int) -> Error {
         match errcode {
@@ -48,6 +54,8 @@ fn int_size(sz: usize) -> c_int {
 
 #[derive(Debug)]
 pub enum EncodeError {
+    InvalidInputBuffer,
+    EmptyEncodingResult,
     OutputBufferTooSmall,
     NoMem,
     InitParamsNotCalled,
@@ -124,6 +132,15 @@ impl Lame {
             ffi::lame_set_brate(self.ptr, quality as c_int) })
     }
 
+    pub unsafe fn error_protection(&mut self) -> bool {
+        ffi::lame_get_error_protection(self.ptr) != 0
+    }
+
+    pub fn set_error_protection(&mut self, enabled: bool) -> Result<(), Error> {
+        handle_simple_error(unsafe {
+            ffi::lame_set_error_protection(self.ptr, enabled as i32) })
+    }
+
     /// Sets more internal parameters according to the other basic parameter
     /// settings.
     pub fn init_params(&mut self) -> Result<(), Error> {
@@ -135,7 +152,7 @@ impl Lame {
     /// buffers must be of the same length, or this function will panic.
     pub fn encode(&mut self, pcm_left: &[i16], pcm_right: &[i16], mp3_buffer: &mut [u8]) -> Result<usize, EncodeError> {
         if pcm_left.len() != pcm_right.len() {
-            panic!("left and right channels must have same number of samples!");
+            return Err(EncodeError::InvalidInputBuffer)
         }
 
         let retn = unsafe {
@@ -158,6 +175,38 @@ impl Lame {
             }
         }
     }
+
+    pub fn flush(&mut self, mp3_buffer: &mut [u8]) -> Result<usize, EncodeError> {
+        let retn = unsafe {
+            ffi::lame_encode_flush(self.ptr, mp3_buffer.as_mut_ptr(), int_size(mp3_buffer.len()))
+        };
+
+        match retn {
+            _ => {
+                if retn < 0 {
+                    Err(EncodeError::Unknown(retn))
+                } else {
+                    Ok(retn as usize)
+                }
+            }
+        }
+    }
+
+    pub fn flush_nogap(&mut self, mp3_buffer: &mut [u8]) -> Result<usize, EncodeError> {
+        let retn = unsafe {
+            ffi::lame_encode_flush_nogap(self.ptr, mp3_buffer.as_mut_ptr(), int_size(mp3_buffer.len()))
+        };
+
+        match retn {
+            _ => {
+                if retn < 0 {
+                    Err(EncodeError::Unknown(retn))
+                } else {
+                    Ok(retn as usize)
+                }
+            }
+        }
+    }
 }
 
 impl Drop for Lame {
@@ -165,3 +214,5 @@ impl Drop for Lame {
         unsafe { ffi::lame_close(self.ptr) };
     }
 }
+
+unsafe impl Send for Lame {}

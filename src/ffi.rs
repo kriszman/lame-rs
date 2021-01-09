@@ -14,8 +14,16 @@ extern "C" {
     pub fn lame_get_quality(ptr: LamePtr) -> c_int;
     pub fn lame_set_brate(ptr: LamePtr, quality: c_int) -> c_int;
     pub fn lame_get_brate(ptr: LamePtr) -> c_int;
+    pub fn lame_set_error_protection(ptr: LamePtr, protection: c_int) -> c_int;
+    pub fn lame_get_error_protection(ptr: LamePtr) -> c_int;
     pub fn lame_init_params(ptr: LamePtr) -> c_int;
     pub fn lame_encode_buffer(ptr: LamePtr,
         pcm_l: *const i16, pcm_r: *const i16, pcm_numsamples: c_int,
         mp3buf: *mut u8, mp3buf_size: c_int) -> c_int;
+    #[allow(dead_code)]
+    pub fn lame_encode_buffer_ieee_float(ptr: LamePtr,
+                              pcm_l: *const f32, pcm_r: *const f32, pcm_numsamples: c_int,
+                              mp3buf: *mut u8, mp3buf_size: c_int) -> c_int;
+    pub fn lame_encode_flush(ptr: LamePtr, mp3buf: *mut u8, size: c_int) -> c_int;
+    pub fn lame_encode_flush_nogap(ptr: LamePtr, mp3buf: *mut u8, size: c_int) -> c_int;
 }
